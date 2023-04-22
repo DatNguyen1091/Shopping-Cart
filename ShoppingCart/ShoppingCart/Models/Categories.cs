@@ -2,10 +2,6 @@
 {
     public class Categories : Common
     {
-        public Categories()
-        {
-            this.ProductCategories = new HashSet<ProductCategories>();
-        }
         public int id { get; set; }
         public string? name { get; set; }
         public string? slug { get; set; }
@@ -14,7 +10,5 @@
         public string? metaKeywords { get; set; }
         public string? categoryStatus { get; set; }
         public bool isDeleted { get; set; }
-
-        public virtual ICollection<ProductCategories> ProductCategories { get; set; }
     }
 }

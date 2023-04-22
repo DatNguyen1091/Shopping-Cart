@@ -2,10 +2,6 @@
 {
     public class Order : Common
     {
-        public Order()
-        {
-            this.OrderItems = new HashSet<OrderItems>();
-        }
         public int id { get; set; }
         public decimal orderTotal { get; set; }
         public decimal orderItemTotal { get; set; }
@@ -14,8 +10,5 @@
         public int customerId { get; set; }
         public string? orderStatus { get; set; }
         public bool isDeleted { get; set; }
-        public virtual Customers? Customers { get; set; }
-        public virtual Addresses? Addresses { get; set; }
-        public virtual ICollection<OrderItems>? OrderItems { get; set; }
     }
 }
