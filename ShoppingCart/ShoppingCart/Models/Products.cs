@@ -14,7 +14,7 @@
         public decimal oldPrice { get; set; }
         public string? imageUrl { get; set; }
         public bool isBestseller { get; set; }
-        public bool isFeatured { get; }
+        public bool isFeatured { get; set; }
         public int quantity { get; set; }
         public string? productStatus { get; set; }
         public bool isDeleted { get; set; }
