@@ -7,6 +7,7 @@
         public string? slug { get; set; }
         public string? description { get; set; }
         public string? metaDescription { get; set; }
+        public string? metaKeywords { get; set; }
         public string? sku { get; set; }
         public string? model { get; set; }
         public decimal price { get; set; }
