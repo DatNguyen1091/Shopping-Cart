@@ -11,6 +11,5 @@
         public string? gender { get; set; }
         public DateTime dateOfBirth { get; set; }
         public bool isDeleted { get; set; }
-        public bool isModified { get; set; }
     }
 }
