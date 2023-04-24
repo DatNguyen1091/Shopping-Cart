@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
@@ -9,13 +11,14 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<Products> GetAllProducts()
+        public List<Products> GetProducts(int? page)
         {
             List<Products> products = new List<Products>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Products", connection))
@@ -45,17 +48,18 @@ namespace ShoppingCart.Controllers
                             model.updatedAt = (DateTime)reader["updatedAt"];
                             products.Add(model);
                         }
+                        connection.Close();
                     }
                 }
-                connection.Close();
             }
-            return products;
+            var items = products.ToPagedList(pageIndex, pageSize);
+            return items.ToList();
         }
 
         [HttpGet("{id}")]
         public Products GetProductsId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Products WHERE id = @id", connection))
@@ -96,17 +100,14 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public Products AddProduct(Products model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO Products (name, slug, description, metaDescription, metaKeywords, sku, model, price, oldPrice, imageUrl, isBestseller, isFeatured, quantity, productStatus, isDeleted, createdAt, updatedAt) VALUES (@name, @slug, @description, @metaDescription, @metaKeywords, @sku, @model, @price, @oldPrice, @imageUrl, @isBestseller, @isFeatured, @quantity, @productStatus, @isDeleted, @createdAt, @updatedAt)";
+                var query = "INSERT INTO Products (name, slug, description, metaDescription, metaKeywords, sku, model, price, oldPrice, imageUrl, isBestseller, isFeatured, quantity, productStatus, isDeleted, createdAt) VALUES (@name, @slug, @description, @metaDescription, @metaKeywords, @sku, @model, @price, @oldPrice, @imageUrl, @isBestseller, @isFeatured, @quantity, @productStatus, @isDeleted, @createdAt)";
                 try
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
+                    using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
                         command.Parameters.AddWithValue("@name", model.name);
                         command.Parameters.AddWithValue("@slug", model.slug);
                         command.Parameters.AddWithValue("@description", model.description);
@@ -123,17 +124,13 @@ namespace ShoppingCart.Controllers
                         command.Parameters.AddWithValue("@productStatus", model.productStatus);
                         command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
                         command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                         command.ExecuteNonQuery();
                     }
-                    transaction.Commit();
                     connection.Close();
                     return model;
                 }
                 catch
                 {
-                    transaction.Rollback();
-                    connection.Close();
                     return null!;
                 }
             }
@@ -142,59 +139,43 @@ namespace ShoppingCart.Controllers
         [HttpPut("{id}")]
         public Products UpdateProduct(int id, Products model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Products SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, sku = @sku, model = @model, price = @price, oldPrice = @oldPrice, imageUrl = @imageUrl, isBestseller = @isBestseller, isFeatured = @isFeatured, quantity = @quantity, productStatus = @productStatus, isDeleted = @isDeleted, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE Products SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, sku = @sku, model = @model, price = @price, oldPrice = @oldPrice, imageUrl = @imageUrl, isBestseller = @isBestseller, isFeatured = @isFeatured, quantity = @quantity, productStatus = @productStatus, isDeleted = @isDeleted, updatedAt  = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@name", model.name);
+                    command.Parameters.AddWithValue("@slug", model.slug);
+                    command.Parameters.AddWithValue("@description", model.description);
+                    command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
+                    command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
+                    command.Parameters.AddWithValue("@sku", model.sku);
+                    command.Parameters.AddWithValue("@model", model.model);
+                    command.Parameters.AddWithValue("@price", model.price);
+                    command.Parameters.AddWithValue("@oldPrice", model.oldPrice);
+                    command.Parameters.AddWithValue("@quantity", model.quantity);
+                    command.Parameters.AddWithValue("@imageUrl", model.imageUrl);
+                    command.Parameters.AddWithValue("@isBestseller", model.isBestseller);
+                    command.Parameters.AddWithValue("@isFeatured", model.isFeatured);
+                    command.Parameters.AddWithValue("@productStatus", model.productStatus);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@name", model.name);
-                            command.Parameters.AddWithValue("@slug", model.slug);
-                            command.Parameters.AddWithValue("@description", model.description);
-                            command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
-                            command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
-                            command.Parameters.AddWithValue("@sku", model.sku);
-                            command.Parameters.AddWithValue("@model", model.model);
-                            command.Parameters.AddWithValue("@price", model.price);
-                            command.Parameters.AddWithValue("@oldPrice", model.oldPrice);
-                            command.Parameters.AddWithValue("@quantity", model.quantity);
-                            command.Parameters.AddWithValue("@imageUrl", model.imageUrl);
-                            command.Parameters.AddWithValue("@isBestseller", model.isBestseller);
-                            command.Parameters.AddWithValue("@isFeatured", model.isFeatured);
-                            command.Parameters.AddWithValue("@productStatus", model.productStatus);
-                            command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveProduct(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM Products WHERE id = @id", connection))
