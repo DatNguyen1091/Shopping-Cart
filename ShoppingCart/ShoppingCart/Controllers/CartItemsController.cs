@@ -33,6 +33,7 @@ namespace ShoppingCart.Controllers
                             model.quantity = (int)reader["quantity"];
                             model.cartId = (int)reader["cartId"];
                             model.productId = (int)reader["productId"];
+                            model.isDeleted = (bool)reader["isDeleted"];
                             model.createdAt = (DateTime)reader["createdAt"];
                             model.updatedAt = (DateTime)reader["updatedAt"];
                             cartItems.Add(model);
@@ -62,8 +63,9 @@ namespace ShoppingCart.Controllers
                             quantity = reader.GetInt32(1),
                             cartId = reader.GetInt32(2),
                             productId = reader.GetInt32(3),
-                            createdAt = reader.GetDateTime(4),
-                            updatedAt = reader.GetDateTime(5),
+                            isDeleted = reader.GetBoolean(4),
+                            createdAt = reader.GetDateTime(5),
+                            updatedAt = reader.GetDateTime(6),
                         };
                         return item;
                     }
@@ -79,12 +81,13 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO CartItems (quantity, cartId, productId, createdAt) VALUES (@quantity, @cartId, @productId, @createdAt)";
+                var query = "INSERT INTO CartItems (quantity, cartId, productId, isDeleted, createdAt) VALUES (@quantity, @cartId, @productId, @isDeleted, @createdAt)";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@quantity", model.quantity);
                     command.Parameters.AddWithValue("@cartId", model.cartId);
                     command.Parameters.AddWithValue("@productId", model.productId);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
                     command.Parameters.AddWithValue("@createdAt", model.createdAt);
                     command.ExecuteNonQuery();
                 }
@@ -99,13 +102,14 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE CartItems SET quantity = @quantity, cartId = @cartId, productId = @productId, updatedAt = @updatedAt WHERE id = @id";
+                var query = "UPDATE CartItems SET quantity = @quantity, cartId = @cartId, productId = @productId, isDeleted = @isDeleted, updatedAt = @updatedAt WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.AddWithValue("@quantity", model.quantity);
                     command.Parameters.AddWithValue("@cartId", model.cartId);
                     command.Parameters.AddWithValue("@productId", model.productId);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
                     command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
