@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
 
@@ -9,13 +8,13 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class CartsController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<Carts> GetAllCategories()
+        public List<Carts> GetCarts(int page)
         {
             List<Carts> carts = new List<Carts>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            int pageSize = 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Carts", connection))
@@ -33,16 +32,17 @@ namespace ShoppingCart.Controllers
                             carts.Add(model);
                         }
                     }
+                    connection.Close();
+                    var cart = carts.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                    return cart;
                 }
-                connection.Close();
             }
-            return carts;
         }
 
         [HttpGet("{id}")]
         public Carts GetCartsId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Carts WHERE id = @id", connection))
@@ -51,7 +51,7 @@ namespace ShoppingCart.Controllers
                     SqlDataReader reader = command.ExecuteReader();
                     if (reader.Read())
                     {
-                        Carts item = new Carts
+                        Carts cart = new Carts
                         {
                             id = reader.GetInt32(0),
                             uniqueCartId = reader.GetString(1),
@@ -59,7 +59,7 @@ namespace ShoppingCart.Controllers
                             createdAt = reader.GetDateTime(3),
                             updatedAt = reader.GetDateTime(4),
                         };
-                        return item;
+                        return cart;
                     }
                     connection.Close();
                     return null!;
@@ -70,79 +70,49 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public Carts AddCart(Carts model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO Carts (uniqueCartId, cartStatus, createdAt, updatedAt) VALUES (@uniqueCartId, @cartStatus, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO Carts (uniqueCartId, cartStatus, createdAt) VALUES (@uniqueCartId, @cartStatus, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@uniqueCartId", model.uniqueCartId);
-                        command.Parameters.AddWithValue("@cartStatus", model.cartStatus);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@uniqueCartId", model.uniqueCartId);
+                    command.Parameters.AddWithValue("@cartStatus", model.cartStatus);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public Carts UpdateCart(int id, Carts model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Carts SET uniqueCartId = @uniqueCartId, cartStatus = @cartStatus, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE Carts SET uniqueCartId = @uniqueCartId, cartStatus = @cartStatus, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@uniqueCartId", model.uniqueCartId);
+                    command.Parameters.AddWithValue("@cartStatus", model.cartStatus);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@uniqueCartId", model.uniqueCartId);
-                            command.Parameters.AddWithValue("@cartStatus", model.cartStatus);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveCart(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM Carts WHERE id = @id", connection))
@@ -151,12 +121,12 @@ namespace ShoppingCart.Controllers
                     int rows = command.ExecuteNonQuery();
                     if (rows > 0)
                     {
-                        return "Item deleted successfully.";
+                        return "Cart deleted successfully.";
                     }
                 }
                 connection.Close();
             }
-            return "Failed to delete item.";
+            return "Failed to delete cart.";
         }
     }
 }
