@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using System.Transactions;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
@@ -9,13 +11,14 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class PeopleController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<People> GetAllPeople()
+        public List<People> GetPeople(int? page)
         {
             List<People> peoples = new List<People>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM People", connection))
@@ -42,13 +45,14 @@ namespace ShoppingCart.Controllers
                 }
                 connection.Close();
             }
-            return peoples;
+            var people = peoples.ToPagedList(pageIndex, pageSize);
+            return people.ToList();
         }
 
         [HttpGet("{id}")]
         public People GetPeopleId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM People WHERE id = @id", connection))
@@ -82,91 +86,61 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public People AddPeople(People model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO People ( firstName, middleName, lastName, emailAddress, phoneNumber, gender, dateOfBirth, isDeleted, createdAt, updatedAt) VALUES ( @firstName, @middleName, @lastName, @emailAddress, @phoneNumber, @gender, @dateOfBirth, @isDeleted, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO People ( firstName, middleName, lastName, emailAddress, phoneNumber, gender, dateOfBirth, isDeleted, createdAt) VALUES ( @firstName, @middleName, @lastName, @emailAddress, @phoneNumber, @gender, @dateOfBirth, @isDeleted, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@firstName", model.firstName);
-                        command.Parameters.AddWithValue("@middleName", model.middleName);
-                        command.Parameters.AddWithValue("@lastName", model.lastName);
-                        command.Parameters.AddWithValue("@emailAddress", model.emailAddress);
-                        command.Parameters.AddWithValue("@phoneNumber", model.phoneNumber);
-                        command.Parameters.AddWithValue("@gender", model.gender);
-                        command.Parameters.AddWithValue("@dateOfBirth", model.dateOfBirth);
-                        command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@firstName", model.firstName);
+                    command.Parameters.AddWithValue("@middleName", model.middleName);
+                    command.Parameters.AddWithValue("@lastName", model.lastName);
+                    command.Parameters.AddWithValue("@emailAddress", model.emailAddress);
+                    command.Parameters.AddWithValue("@phoneNumber", model.phoneNumber);
+                    command.Parameters.AddWithValue("@gender", model.gender);
+                    command.Parameters.AddWithValue("@dateOfBirth", model.dateOfBirth);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public People UpdatePeople(int id, People model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE People SET firstName = @firstName, middleName = @middleName, lastName = @lastName, emailAddress = @emailAddress, phoneNumber = @phoneNumber, gender = @gender, dateOfBirth = @dateOfBirth, isDeleted = @isDeleted, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE People SET firstName = @firstName, middleName = @middleName, lastName = @lastName, emailAddress = @emailAddress, phoneNumber = @phoneNumber, gender = @gender, dateOfBirth = @dateOfBirth, isDeleted = @isDeleted, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@firstName", model.firstName);
+                    command.Parameters.AddWithValue("@middleName", model.middleName);
+                    command.Parameters.AddWithValue("@lastName", model.lastName);
+                    command.Parameters.AddWithValue("@emailAddress", model.emailAddress);
+                    command.Parameters.AddWithValue("@phoneNumber", model.phoneNumber);
+                    command.Parameters.AddWithValue("@gender", model.gender);
+                    command.Parameters.AddWithValue("@dateOfBirth", model.dateOfBirth);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@firstName", model.firstName);
-                            command.Parameters.AddWithValue("@middleName", model.middleName);
-                            command.Parameters.AddWithValue("@lastName", model.lastName);
-                            command.Parameters.AddWithValue("@emailAddress", model.emailAddress);
-                            command.Parameters.AddWithValue("@phoneNumber", model.phoneNumber);
-                            command.Parameters.AddWithValue("@gender", model.gender);
-                            command.Parameters.AddWithValue("@dateOfBirth", model.dateOfBirth);
-                            command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemovePeople(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM People WHERE id = @id", connection))

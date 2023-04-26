@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
@@ -9,13 +11,14 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class CustomerAddressesController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<CustomerAddresses> GetAllCustomerAddresses()
+        public List<CustomerAddresses> GetCustomerAddresses(int? page)
         {
             List<CustomerAddresses> customerAddresses = new List<CustomerAddresses>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM CustomerAddresses", connection))
@@ -36,13 +39,14 @@ namespace ShoppingCart.Controllers
                 }
                 connection.Close();
             }
-            return customerAddresses;
+            var customerAddress = customerAddresses.ToPagedList(pageIndex, pageSize);
+            return customerAddress.ToList();
         }
 
         [HttpGet("{id}")]
         public CustomerAddresses GetCustomerAddressesId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM CustomerAddresses WHERE id = @id", connection))
@@ -70,79 +74,49 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public CustomerAddresses AddCustomerAddresses(CustomerAddresses model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO CustomerAddresses  ( customerId, addressId, createdAt, updatedAt) VALUES ( @customerId, @addressId, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO CustomerAddresses  ( customerId, addressId, createdAt) VALUES ( @customerId, @addressId, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@customerId", model.customerId);
-                        command.Parameters.AddWithValue("@addressId", model.addressId);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@customerId", model.customerId);
+                    command.Parameters.AddWithValue("@addressId", model.addressId);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public CustomerAddresses UpdateCustomerAddresses(int id, CustomerAddresses model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE CustomerAddresses SET customerId = @customerId, addressId = @addressId, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE CustomerAddresses SET customerId = @customerId, addressId = @addressId, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@customerId", model.customerId);
+                    command.Parameters.AddWithValue("@addressId", model.addressId);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@customerId", model.customerId);
-                            command.Parameters.AddWithValue("@addressId", model.addressId);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveCustomerAddresses(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM CustomerAddresses WHERE id = @id", connection))
@@ -151,12 +125,12 @@ namespace ShoppingCart.Controllers
                     int rows = command.ExecuteNonQuery();
                     if (rows > 0)
                     {
-                        return "Item deleted successfully.";
+                        return "Deleted successfully.";
                     }
                 }
                 connection.Close();
             }
-            return "Failed to delete item.";
+            return "Failed to delete.";
         }
     }
 }

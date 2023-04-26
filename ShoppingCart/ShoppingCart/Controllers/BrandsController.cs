@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
@@ -9,14 +9,14 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class BrandsController : ControllerBase
     {      
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
-
         [HttpGet]
-        public List<Brands> GetAllBrands()
+        public List<Brands> GetBrands(int? page)
         {
             List<Brands> brands = new List<Brands>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
+            {   
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Brands", connection))
                 {
@@ -41,13 +41,14 @@ namespace ShoppingCart.Controllers
                 }
                 connection.Close();
             }
-            return brands;
+            var brand = brands.ToPagedList(pageIndex, pageSize);
+            return brand.ToList();
         }
 
         [HttpGet("{id}")]
         public Brands GetProductBrandId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Brands WHERE id = @id", connection))
@@ -80,17 +81,12 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public Brands AddProductCategories(Brands model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO Brands ( name, slug, description, metaDescription, metaKeywords, brandStatus, isDeleted, createdAt, updatedAt) VALUES ( @name, @slug, @description, @metaDescription, @metaKeywords, @brandStatus, @isDelete, @createdAt, @updatedAt)";
-                try
-                {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
+                var query = "INSERT INTO Brands ( name, slug, description, metaDescription, metaKeywords, brandStatus, isDeleted, createdAt) VALUES ( @name, @slug, @description, @metaDescription, @metaKeywords, @brandStatus, @isDelete, @createdAt)";
+                    using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
                         command.Parameters.AddWithValue("@name", model.name);
                         command.Parameters.AddWithValue("@slug", model.slug);
                         command.Parameters.AddWithValue("@description", model.description);
@@ -99,70 +95,45 @@ namespace ShoppingCart.Controllers
                         command.Parameters.AddWithValue("@brandStatus", model.brandStatus);
                         command.Parameters.AddWithValue("@isDelete", model.isDelete);
                         command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                         command.ExecuteNonQuery();
                     }
-                    transaction.Commit();
                     connection.Close();
                     return model;
-                }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
             }
         }
 
         [HttpPut("{id}")]
         public Brands UpdateBrands(int id, Brands model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Brands SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, brandStatus = @brandStatus, isDeleted = @isDelete, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE Brands SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, brandStatus = @brandStatus, isDeleted = @isDelete, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@name", model.name);
+                    command.Parameters.AddWithValue("@slug", model.slug);
+                    command.Parameters.AddWithValue("@description", model.description);
+                    command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
+                    command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
+                    command.Parameters.AddWithValue("@brandStatus", model.brandStatus);
+                    command.Parameters.AddWithValue("@isDelete", model.isDelete);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@name", model.name);
-                            command.Parameters.AddWithValue("@slug", model.slug);
-                            command.Parameters.AddWithValue("@description", model.description);
-                            command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
-                            command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
-                            command.Parameters.AddWithValue("@brandStatus", model.brandStatus);
-                            command.Parameters.AddWithValue("@isDelete", model.isDelete);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveBrands(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM Brands WHERE id = @id", connection))
@@ -171,12 +142,12 @@ namespace ShoppingCart.Controllers
                     int rows = command.ExecuteNonQuery();
                     if (rows > 0)
                     {
-                        return "Item deleted successfully.";
+                        return "Brand deleted successfully.";
                     }
                 }
                 connection.Close();
             }
-            return "Failed to delete item.";
+            return "Failed to delete brand.";
         }
     }
 }

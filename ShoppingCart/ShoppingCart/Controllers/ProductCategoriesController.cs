@@ -2,20 +2,23 @@
 using Microsoft.AspNetCore.Mvc;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using System.Transactions;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class ProductCategoriesController : ControllerBase
-    {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
+    { 
 
         [HttpGet]
-        public List<ProductCategories> GetAllProductCategories()
+        public List<ProductCategories> GetProductCategories(int? page)
         {
             List<ProductCategories> productCategories = new List<ProductCategories>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM ProductCategories", connection))
@@ -36,13 +39,14 @@ namespace ShoppingCart.Controllers
                 }
                 connection.Close();
             }
-            return productCategories;
+            var productCategory = productCategories.ToPagedList(pageIndex, pageSize);
+            return productCategory.ToList();
         }
 
         [HttpGet("{id}")]
         public ProductCategories GetProductCategoryId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM ProductCategories WHERE id = @id", connection))
@@ -70,79 +74,49 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public ProductCategories AddProductCategories(ProductCategories model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO ProductCategories  ( productId, categoryId, createdAt, updatedAt) VALUES ( @productId, @categoryId, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO ProductCategories  ( productId, categoryId, createdAt) VALUES ( @productId, @categoryId, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@productId", model.productId);
-                        command.Parameters.AddWithValue("@categoryId", model.categoryId);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@productId", model.productId);
+                    command.Parameters.AddWithValue("@categoryId", model.categoryId);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public ProductCategories UpdateProductCategories(int id, ProductCategories model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE ProductCategories SET productId = @productId, categoryId = @categoryId, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE ProductCategories SET productId = @productId, categoryId = @categoryId, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@productId", model.productId);
+                    command.Parameters.AddWithValue("@categoryId", model.categoryId);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@productId", model.productId);
-                            command.Parameters.AddWithValue("@categoryId", model.categoryId);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveProductCategories(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM ProductCategories WHERE id = @id", connection))
@@ -151,12 +125,12 @@ namespace ShoppingCart.Controllers
                     int rows = command.ExecuteNonQuery();
                     if (rows > 0)
                     {
-                        return "Item deleted successfully.";
+                        return "Deleted successfully.";
                     }
                 }
                 connection.Close();
             }
-            return "Failed to delete item.";
+            return "Failed to delete.";
         }
     }
 }

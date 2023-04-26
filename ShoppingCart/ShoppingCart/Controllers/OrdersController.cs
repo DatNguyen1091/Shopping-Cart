@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
@@ -9,13 +10,14 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class OrdersController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<Order> GetAllOrders()
+        public List<Order> GetOrders(int? page)
         {
             List<Order> orders = new List<Order>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Orders", connection))
@@ -41,13 +43,14 @@ namespace ShoppingCart.Controllers
                 }
                 connection.Close();
             }
-            return orders;
+            var order = orders.ToPagedList(pageIndex, pageSize);
+            return order.ToList();
         }
 
         [HttpGet("{id}")]
         public Order GetOrderId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Orders WHERE id = @id", connection))
@@ -80,89 +83,59 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public Order AddOrder(Order model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO Orders ( orderTotal, orderItemTotal, shippingCharge, deliveryAddressId, customerId, orderStatus, isDeleted, createdAt, updatedAt) VALUES ( @orderTotal, @orderItemTotal, @shippingCharge, @deliveryAddressId, @customerId, @orderStatus, @isDeleted, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO Orders ( orderTotal, orderItemTotal, shippingCharge, deliveryAddressId, customerId, orderStatus, isDeleted, createdAt) VALUES ( @orderTotal, @orderItemTotal, @shippingCharge, @deliveryAddressId, @customerId, @orderStatus, @isDeleted, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@orderTotal", model.orderTotal);
-                        command.Parameters.AddWithValue("@orderItemTotal", model.orderItemTotal);
-                        command.Parameters.AddWithValue("@shippingCharge", model.shippingCharge);
-                        command.Parameters.AddWithValue("@deliveryAddressId", model.deliveryAddressId);
-                        command.Parameters.AddWithValue("@customerId", model.customerId);
-                        command.Parameters.AddWithValue("@orderStatus", model.orderStatus);
-                        command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@orderTotal", model.orderTotal);
+                    command.Parameters.AddWithValue("@orderItemTotal", model.orderItemTotal);
+                    command.Parameters.AddWithValue("@shippingCharge", model.shippingCharge);
+                    command.Parameters.AddWithValue("@deliveryAddressId", model.deliveryAddressId);
+                    command.Parameters.AddWithValue("@customerId", model.customerId);
+                    command.Parameters.AddWithValue("@orderStatus", model.orderStatus);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public Order UpdateOrder(int id, Order model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Orders SET orderTotal = @orderTotal, orderItemTotal = @orderItemTotal, shippingCharge = @shippingCharge, deliveryAddressId = @deliveryAddressId, customerId = @customerId, orderStatus = @orderStatus, isDeleted = @isDeleted, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE Orders SET orderTotal = @orderTotal, orderItemTotal = @orderItemTotal, shippingCharge = @shippingCharge, deliveryAddressId = @deliveryAddressId, customerId = @customerId, orderStatus = @orderStatus, isDeleted = @isDeleted, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@orderTotal", model.orderTotal);
+                    command.Parameters.AddWithValue("@orderItemTotal", model.orderItemTotal);
+                    command.Parameters.AddWithValue("@shippingCharge", model.shippingCharge);
+                    command.Parameters.AddWithValue("@deliveryAddressId", model.deliveryAddressId);
+                    command.Parameters.AddWithValue("@customerId", model.customerId);
+                    command.Parameters.AddWithValue("@orderStatus", model.orderStatus);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@orderTotal", model.orderTotal);
-                            command.Parameters.AddWithValue("@orderItemTotal", model.orderItemTotal);
-                            command.Parameters.AddWithValue("@shippingCharge", model.shippingCharge);
-                            command.Parameters.AddWithValue("@deliveryAddressId", model.deliveryAddressId);
-                            command.Parameters.AddWithValue("@customerId", model.customerId);
-                            command.Parameters.AddWithValue("@orderStatus", model.orderStatus);
-                            command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveOrder(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM Orders WHERE id = @id", connection))

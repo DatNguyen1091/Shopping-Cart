@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
+using X.PagedList;
 
 namespace ShoppingCart.Controllers
 {
@@ -9,13 +11,14 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class OrderItemsController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<OrderItems> GetAllOrderItems()
+        public List<OrderItems> GetOrderItems(int? page)
         {
             List<OrderItems> orderItems = new List<OrderItems>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            var pageSize = 10;
+            var pageIndex = page.HasValue ? Convert.ToInt32(page) : 1;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM OrderItems", connection))
@@ -38,13 +41,14 @@ namespace ShoppingCart.Controllers
                 }
                 connection.Close();
             }
-            return orderItems;
+            var orderItem = orderItems.ToPagedList(pageIndex, pageSize);
+            return orderItem.ToList();
         }
 
         [HttpGet("{id}")]
         public OrderItems GetOrderItemId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM OrderItems WHERE id = @id", connection))
@@ -74,83 +78,53 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public OrderItems AddOrderItem(OrderItems model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO OrderItems (quantity, price, orderId, productId, createdAt, updatedAt) VALUES (@quantity, @price, @orderId, @productId, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO OrderItems (quantity, price, orderId, productId, createdAt) VALUES (@quantity, @price, @orderId, @productId, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@quantity", model.quantity);
-                        command.Parameters.AddWithValue("@price", model.price);
-                        command.Parameters.AddWithValue("@orderId", model.orderId);
-                        command.Parameters.AddWithValue("@productId", model.productId);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@quantity", model.quantity);
+                    command.Parameters.AddWithValue("@price", model.price);
+                    command.Parameters.AddWithValue("@orderId", model.orderId);
+                    command.Parameters.AddWithValue("@productId", model.productId);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public OrderItems UpdateOrderItem(int id, OrderItems model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE OrderItems SET quantity = @quantity, price = @price, orderId = @orderId, productId = @productId, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE OrderItems SET quantity = @quantity, price = @price, orderId = @orderId, productId = @productId, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@quantity", model.quantity);
+                    command.Parameters.AddWithValue("@price", model.price);
+                    command.Parameters.AddWithValue("@orderId", model.orderId);
+                    command.Parameters.AddWithValue("@productId", model.productId);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@quantity", model.quantity);
-                            command.Parameters.AddWithValue("@price", model.price);
-                            command.Parameters.AddWithValue("@orderId", model.orderId);
-                            command.Parameters.AddWithValue("@productId", model.productId);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveOrderItem(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM OrderItems WHERE id = @id", connection))
