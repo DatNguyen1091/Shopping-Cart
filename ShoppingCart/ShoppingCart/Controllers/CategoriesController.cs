@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using ShoppingCart.Models;
 using System.Data.SqlClient;
 
@@ -9,17 +8,21 @@ namespace ShoppingCart.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly string connectionString = "Server=DATNGUYEN\\SQLEXPRESS;Database=ShoppingCart000;Integrated Security=True;";
 
         [HttpGet]
-        public List<Categories> GetAllCategories()
+        public List<Categories> GetCategories(int page)
         {
             List<Categories> categories = new List<Categories>();
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            int pageSize = 10;
+            var offset = (page - 1) * pageSize;
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command = new SqlCommand("SELECT * FROM Categories", connection))
-                {
+                var query = "SELECT * FROM Categories ORDER BY id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY;";
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {   
+                    command.Parameters.AddWithValue("@offset", offset);
+                    command.Parameters.AddWithValue("@pageSize", pageSize);
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -47,7 +50,7 @@ namespace ShoppingCart.Controllers
         [HttpGet("{id}")]
         public Categories GetCategoriesId(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("SELECT * FROM Categories WHERE id = @id", connection))
@@ -80,89 +83,59 @@ namespace ShoppingCart.Controllers
         [HttpPost]
         public Categories AddCategories(Categories model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                SqlTransaction transaction = connection.BeginTransaction();
-                var query = "INSERT INTO Categories (name, slug, description, metaDescription, metaKeywords, categoryStatus,isDeleted, createdAt, updatedAt) VALUES (@name, @slug, @description, @metaDescription, @metaKeywords, @categoryStatus,@isDeleted, @createdAt, @updatedAt)";
-                try
+                var query = "INSERT INTO Categories (name, slug, description, metaDescription, metaKeywords, categoryStatus,isDeleted, createdAt) VALUES (@name, @slug, @description, @metaDescription, @metaKeywords, @categoryStatus,@isDeleted, @createdAt)";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                    {
-                        model.createdAt = DateTime.Now;
-                        model.updatedAt = DateTime.Now;
-                        command.Parameters.AddWithValue("@name", model.name);
-                        command.Parameters.AddWithValue("@slug", model.slug);
-                        command.Parameters.AddWithValue("@description", model.description);
-                        command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
-                        command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
-                        command.Parameters.AddWithValue("@categoryStatus", model.categoryStatus);
-                        command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                        command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                        command.ExecuteNonQuery();
-                    }
-                    transaction.Commit();
-                    connection.Close();
-                    return model;
+                    command.Parameters.AddWithValue("@name", model.name);
+                    command.Parameters.AddWithValue("@slug", model.slug);
+                    command.Parameters.AddWithValue("@description", model.description);
+                    command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
+                    command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
+                    command.Parameters.AddWithValue("@categoryStatus", model.categoryStatus);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
+                    command.ExecuteNonQuery();
                 }
-                catch
-                {
-                    transaction.Rollback();
-                    connection.Close();
-                    return null!;
-                }
+                connection.Close();
+                return model;
             }
         }
 
         [HttpPut("{id}")]
         public Categories UpdateCategory(int id, Categories model)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Categories SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, categoryStatus = @categoryStatus, isDeleted = @isDeleted, createdAt  = @createdAt, updatedAt = @updatedAt WHERE id = @id";
-                using (SqlTransaction transaction = connection.BeginTransaction())
+                var query = "UPDATE Categories SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, categoryStatus = @categoryStatus, isDeleted = @isDeleted, updatedAt = @updatedAt WHERE id = @id";
+                using (SqlCommand command = new SqlCommand(query, connection))
                 {
-                    try
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.AddWithValue("@name", model.name);
+                    command.Parameters.AddWithValue("@slug", model.slug);
+                    command.Parameters.AddWithValue("@description", model.description);
+                    command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
+                    command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
+                    command.Parameters.AddWithValue("@categoryStatus", model.categoryStatus);
+                    command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
+                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
+                    int rows = command.ExecuteNonQuery();
+                    if (rows == 0)
                     {
-                        using (SqlCommand command = new SqlCommand(query, connection, transaction))
-                        {
-                            model.createdAt = DateTime.Now;
-                            model.updatedAt = DateTime.Now;
-                            command.Parameters.AddWithValue("@id", id);
-                            command.Parameters.AddWithValue("@name", model.name);
-                            command.Parameters.AddWithValue("@slug", model.slug);
-                            command.Parameters.AddWithValue("@description", model.description);
-                            command.Parameters.AddWithValue("@metaDescription", model.metaDescription);
-                            command.Parameters.AddWithValue("@metaKeywords", model.metaKeywords);
-                            command.Parameters.AddWithValue("@categoryStatus", model.categoryStatus);
-                            command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                            command.Parameters.AddWithValue("@createdAt", model.createdAt);
-                            command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
-                            int rows = command.ExecuteNonQuery();
-                            if (rows == 0)
-                            {
-                                transaction.Rollback();
-                                return null!;
-                            }
-                        }
-                        transaction.Commit();
-                        return model;
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
                         return null!;
                     }
                 }
+                return model;
             }
         }
 
         [HttpDelete("{id}")]
         public string RemoveCategory(int id)
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand("DELETE FROM Categories WHERE id = @id", connection))
@@ -171,12 +144,12 @@ namespace ShoppingCart.Controllers
                     int rows = command.ExecuteNonQuery();
                     if (rows > 0)
                     {
-                        return "Item deleted successfully.";
+                        return "Category deleted successfully.";
                     }
                 }
                 connection.Close();
             }
-            return "Failed to delete item.";
+            return "Failed to delete category.";
         }
     }
 }
