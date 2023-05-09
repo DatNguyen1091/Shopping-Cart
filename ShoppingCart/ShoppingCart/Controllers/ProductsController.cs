@@ -21,8 +21,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command = new SqlCommand("SELECT * FROM Products", connection))
+                var offset = (pageIndex - 1) * pageSize;
+                using (SqlCommand command = new SqlCommand("SELECT * FROM Products ORDER BY id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY", connection))
                 {
+                    command.Parameters.AddWithValue("@offset", offset);
+                    command.Parameters.AddWithValue("@pageSize", pageSize);
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -103,7 +106,7 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Products (name, slug, description, metaDescription, metaKeywords, sku, model, price, oldPrice, imageUrl, isBestseller, isFeatured, quantity, productStatus, isDeleted, createdAt) VALUES (@name, @slug, @description, @metaDescription, @metaKeywords, @sku, @model, @price, @oldPrice, @imageUrl, @isBestseller, @isFeatured, @quantity, @productStatus, @isDeleted, @createdAt)";
+                var query = "INSERT INTO Products (name, slug, description, metaDescription, metaKeywords, sku, model, price, oldPrice, imageUrl, isBestseller, isFeatured, quantity, productStatus, isDeleted) VALUES (@name, @slug, @description, @metaDescription, @metaKeywords, @sku, @model, @price, @oldPrice, @imageUrl, @isBestseller, @isFeatured, @quantity, @productStatus, @isDeleted)";
                 try
                 {
                     using (SqlCommand command = new SqlCommand(query, connection))
@@ -123,7 +126,6 @@ namespace ShoppingCart.Controllers
                         command.Parameters.AddWithValue("@isFeatured", model.isFeatured);
                         command.Parameters.AddWithValue("@productStatus", model.productStatus);
                         command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                        command.Parameters.AddWithValue("@createdAt", model.createdAt);
                         command.ExecuteNonQuery();
                     }
                     connection.Close();
@@ -142,7 +144,7 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Products SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, sku = @sku, model = @model, price = @price, oldPrice = @oldPrice, imageUrl = @imageUrl, isBestseller = @isBestseller, isFeatured = @isFeatured, quantity = @quantity, productStatus = @productStatus, isDeleted = @isDeleted, updatedAt  = @updatedAt WHERE id = @id";
+                var query = "UPDATE Products SET name = @name, slug = @slug, description = @description, metaDescription = @metaDescription, metaKeywords = @metaKeywords, sku = @sku, model = @model, price = @price, oldPrice = @oldPrice, imageUrl = @imageUrl, isBestseller = @isBestseller, isFeatured = @isFeatured, quantity = @quantity, productStatus = @productStatus, isDeleted = @isDeleted WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
@@ -161,7 +163,6 @@ namespace ShoppingCart.Controllers
                     command.Parameters.AddWithValue("@isFeatured", model.isFeatured);
                     command.Parameters.AddWithValue("@productStatus", model.productStatus);
                     command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
                     {

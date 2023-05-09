@@ -21,8 +21,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command = new SqlCommand("SELECT * FROM OrderItems", connection))
+                var offset = (pageIndex - 1) * pageSize;
+                using (SqlCommand command = new SqlCommand("SELECT * FROM OrderItems ORDER BY id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY", connection))
                 {
+                    command.Parameters.AddWithValue("@offset", offset);
+                    command.Parameters.AddWithValue("@pageSize", pageSize);
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -81,14 +84,13 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO OrderItems (quantity, price, orderId, productId, createdAt) VALUES (@quantity, @price, @orderId, @productId, @createdAt)";
+                var query = "INSERT INTO OrderItems (quantity, price, orderId, productId) VALUES (@quantity, @price, @orderId, @productId)";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@quantity", model.quantity);
                     command.Parameters.AddWithValue("@price", model.price);
                     command.Parameters.AddWithValue("@orderId", model.orderId);
                     command.Parameters.AddWithValue("@productId", model.productId);
-                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
                     command.ExecuteNonQuery();
                 }
                 connection.Close();
@@ -102,7 +104,7 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE OrderItems SET quantity = @quantity, price = @price, orderId = @orderId, productId = @productId, updatedAt = @updatedAt WHERE id = @id";
+                var query = "UPDATE OrderItems SET quantity = @quantity, price = @price, orderId = @orderId, productId = @productId WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
@@ -110,7 +112,6 @@ namespace ShoppingCart.Controllers
                     command.Parameters.AddWithValue("@price", model.price);
                     command.Parameters.AddWithValue("@orderId", model.orderId);
                     command.Parameters.AddWithValue("@productId", model.productId);
-                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
                     {

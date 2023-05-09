@@ -22,8 +22,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command = new SqlCommand("SELECT * FROM ProductBrands", connection))
+                var offset = (pageIndex - 1) * pageSize;
+                using (SqlCommand command = new SqlCommand("SELECT * FROM ProductBrands ORDER BY id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY", connection))
                 {
+                    command.Parameters.AddWithValue("@offset", offset);
+                    command.Parameters.AddWithValue("@pageSize", pageSize);
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -78,12 +81,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO ProductBrands  ( productId, brandId, createdAt) VALUES ( @productId, @brandId, @createdAt)";
+                var query = "INSERT INTO ProductBrands  ( productId, brandId) VALUES ( @productId, @brandId)";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@productId", model.productId);
                     command.Parameters.AddWithValue("@brandId", model.brandId);
-                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
                     command.ExecuteNonQuery();
                 }
                 connection.Close();
@@ -97,13 +99,12 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE ProductBrands SET productId = @productId, brandId = @brandId, updatedAt = @updatedAt WHERE id = @id";
+                var query = "UPDATE ProductBrands SET productId = @productId, brandId = @brandId WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.AddWithValue("@productId", model.productId);
                     command.Parameters.AddWithValue("@brandId", model.brandId);
-                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
                     {

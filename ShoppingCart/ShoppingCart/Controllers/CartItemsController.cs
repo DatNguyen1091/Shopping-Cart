@@ -81,14 +81,13 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO CartItems (quantity, cartId, productId, isDeleted, createdAt) VALUES (@quantity, @cartId, @productId, @isDeleted, @createdAt)";
+                var query = "INSERT INTO CartItems (quantity, cartId, productId, isDeleted) VALUES (@quantity, @cartId, @productId, @isDeleted)";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@quantity", model.quantity);
                     command.Parameters.AddWithValue("@cartId", model.cartId);
                     command.Parameters.AddWithValue("@productId", model.productId);
                     command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
                     command.ExecuteNonQuery();
                 }
                 connection.Close();
@@ -102,7 +101,7 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE CartItems SET quantity = @quantity, cartId = @cartId, productId = @productId, isDeleted = @isDeleted, updatedAt = @updatedAt WHERE id = @id";
+                var query = "UPDATE CartItems SET quantity = @quantity, cartId = @cartId, productId = @productId, isDeleted = @isDeleted WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
@@ -110,7 +109,6 @@ namespace ShoppingCart.Controllers
                     command.Parameters.AddWithValue("@cartId", model.cartId);
                     command.Parameters.AddWithValue("@productId", model.productId);
                     command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
                     {

@@ -21,8 +21,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command = new SqlCommand("SELECT * FROM CustomerAddresses", connection))
+                var offset = (pageIndex - 1) * pageSize;
+                using (SqlCommand command = new SqlCommand("SELECT * FROM CustomerAddresses ORDER BY id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY", connection))
                 {
+                    command.Parameters.AddWithValue("@offset", offset);
+                    command.Parameters.AddWithValue("@pageSize", pageSize);
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -77,12 +80,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO CustomerAddresses  ( customerId, addressId, createdAt) VALUES ( @customerId, @addressId, @createdAt)";
+                var query = "INSERT INTO CustomerAddresses  ( customerId, addressId) VALUES ( @customerId, @addressId)";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@customerId", model.customerId);
                     command.Parameters.AddWithValue("@addressId", model.addressId);
-                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
                     command.ExecuteNonQuery();
                 }
                 connection.Close();
@@ -96,13 +98,12 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE CustomerAddresses SET customerId = @customerId, addressId = @addressId, updatedAt = @updatedAt WHERE id = @id";
+                var query = "UPDATE CustomerAddresses SET customerId = @customerId, addressId = @addressId WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.AddWithValue("@customerId", model.customerId);
                     command.Parameters.AddWithValue("@addressId", model.addressId);
-                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
                     {

@@ -20,8 +20,11 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command = new SqlCommand("SELECT * FROM Orders", connection))
+                var offset = (pageIndex - 1) * pageSize;
+                using (SqlCommand command = new SqlCommand("SELECT * FROM Orders ORDER BY id OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY", connection))
                 {
+                    command.Parameters.AddWithValue("@offset", offset);
+                    command.Parameters.AddWithValue("@pageSize", pageSize);
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
@@ -86,7 +89,7 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "INSERT INTO Orders ( orderTotal, orderItemTotal, shippingCharge, deliveryAddressId, customerId, orderStatus, isDeleted, createdAt) VALUES ( @orderTotal, @orderItemTotal, @shippingCharge, @deliveryAddressId, @customerId, @orderStatus, @isDeleted, @createdAt)";
+                var query = "INSERT INTO Orders ( orderTotal, orderItemTotal, shippingCharge, deliveryAddressId, customerId, orderStatus, isDeleted) VALUES ( @orderTotal, @orderItemTotal, @shippingCharge, @deliveryAddressId, @customerId, @orderStatus, @isDeleted)";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@orderTotal", model.orderTotal);
@@ -96,7 +99,6 @@ namespace ShoppingCart.Controllers
                     command.Parameters.AddWithValue("@customerId", model.customerId);
                     command.Parameters.AddWithValue("@orderStatus", model.orderStatus);
                     command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                    command.Parameters.AddWithValue("@createdAt", model.createdAt);
                     command.ExecuteNonQuery();
                 }
                 connection.Close();
@@ -110,7 +112,7 @@ namespace ShoppingCart.Controllers
             using (SqlConnection connection = new SqlConnection(Connection.ConnectionString))
             {
                 connection.Open();
-                var query = "UPDATE Orders SET orderTotal = @orderTotal, orderItemTotal = @orderItemTotal, shippingCharge = @shippingCharge, deliveryAddressId = @deliveryAddressId, customerId = @customerId, orderStatus = @orderStatus, isDeleted = @isDeleted, updatedAt = @updatedAt WHERE id = @id";
+                var query = "UPDATE Orders SET orderTotal = @orderTotal, orderItemTotal = @orderItemTotal, shippingCharge = @shippingCharge, deliveryAddressId = @deliveryAddressId, customerId = @customerId, orderStatus = @orderStatus, isDeleted = @isDeleted WHERE id = @id";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@id", id);
@@ -121,7 +123,6 @@ namespace ShoppingCart.Controllers
                     command.Parameters.AddWithValue("@customerId", model.customerId);
                     command.Parameters.AddWithValue("@orderStatus", model.orderStatus);
                     command.Parameters.AddWithValue("@isDeleted", model.isDeleted);
-                    command.Parameters.AddWithValue("@updatedAt", model.updatedAt);
                     int rows = command.ExecuteNonQuery();
                     if (rows == 0)
                     {
